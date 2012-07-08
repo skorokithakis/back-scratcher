@@ -1,0 +1,70 @@
+struct point {
+    float x;
+    float y;
+    float z;
+};
+
+struct radii {
+    float r1;
+    float r2;
+    float r3;
+};
+
+// The wheel has a circumference of 6 cm averaged over 10 turns.
+// The diameter of 1.9 agrees with the result.
+// 1 cm = 60 degrees
+const float CM = 60;
+
+// From http://en.wikipedia.org/wiki/Trilateration
+// Motor A is 0, 0, 0
+// Motor B is 0, D, 0
+// Motor C is I, J, 0
+const float D = 32.0;
+const float I = D / 2;
+const float J = 0.86 * D;
+
+const radii INITIAL_RADII = {27, 27, 27};
+const int POWER = 60;
+
+point radii_to_cartesian(radii input) {
+    point output;
+    output.x = (pow(input.r1, 2) - pow(input.r2, 2) + pow(D, 2)) / (2 * D);
+    output.y = ((pow(input.r1, 2) - pow(input.r3, 2) + pow(I, 2) + pow(J, 2)) / (2 * J)) - ((I * output.x) / J);
+    output.z = sqrt(abs(pow(input.r1, 2) - pow(output.x, 2) - pow(output.y, 2)));
+    return output;
+}
+
+radii cartesian_to_radii(point input) {
+    radii output;
+    output.r1 = sqrt(pow(input.x, 2) + pow(input.y, 2) + pow(input.z, 2));
+    output.r2 = sqrt(pow((input.x - D), 2) + pow(input.y, 2) + pow(input.z, 2));
+    output.r3 = sqrt(pow((input.x - I), 2) + pow((input.y - J), 2) + pow(input.z, 2));
+    return output;
+}
+
+void move_to_radii(radii input) {
+    // Move to the given radii, relative to the starting position.
+}
+
+void move_to(point input) {
+    // Move to the specified Cartesian point.
+    radii target = cartesian_to_radii(input);
+    TextOut(0, LCD_LINE1, "Moving to...");
+    move_to_radii(target);
+    TextOut(0, LCD_LINE2, "Moving to radii...");
+}
+
+void reset() {
+    // Move back to the origin.
+    move_to_radii(INITIAL_RADII);
+}
+
+task main() {
+    TextOut(0, LCD_LINE1, "Hello World 2!");
+    radii mypoint = INITIAL_RADII;
+    NumOut(0, LCD_LINE2, mypoint.r1);
+    NumOut(0, LCD_LINE3, mypoint.r2);
+    NumOut(0, LCD_LINE4, mypoint.r3);
+
+    Wait(5000);
+}
