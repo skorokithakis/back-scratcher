@@ -17,6 +17,7 @@ CM = 60.0
 # Motor A is 0, 0, 0
 # Motor B is 0, D, 0
 # Motor C is I, J, 0
+# Or, D is the length of a side of the triangle in cm.
 D = 32.0
 I = D / 2
 J = 0.86 * D
