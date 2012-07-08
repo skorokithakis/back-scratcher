@@ -49,14 +49,24 @@ class Scratcher(object):
         self.motcont = MotCont(self.brick)
         self.motcont.start()
         self.power = 60
-        self.initial_radii = (23.5, 23.5, 23.5)
+        self.initial_radii = (30, 30, 30)
 
     def move_to_radii(self, r1, r2, r3):
         "Move to the given radii, relative to the starting position."
-        # Convert the given radii from cm to degrees.
 
+        # These are absolute radii, thanks to motcont.
         radii = (r1, r2, r3)
-        degrees = [(radius - initial) * CM for radius, initial in zip(radii, self.initial_radii)]
+
+        # Sanity checks.
+        radii = [max(radius, 5) for radius in radii]
+
+        # Subtract the new position from the initial position. Since the software
+        # doesn't know we're at some point (x, y, z) to begin with, it treats the
+        # starting position as (0, 0, 0). The calculation here compensates for that.
+        radii = [(radius - initial) for radius, initial in zip(radii, self.initial_radii)]
+
+        # Convert the given radii from cm to degrees.
+        degrees = [radius * CM for radius in radii]
         ports = (PORT_A, PORT_B, PORT_C)
 
         for port, degrees in zip(ports, degrees):
@@ -81,7 +91,8 @@ def main():
 
     scratcher = Scratcher()
     for i in range(5):
-        scratcher.move_to(randint(0, 25), randint(0, 25), 25)
+        scratcher.move_to(randint(0, 25), randint(0, 25), randint(5, 25))
+    scratcher.move_to(0, 0, 30)
     scratcher.reset()
 
 
