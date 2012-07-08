@@ -2,7 +2,12 @@ Back scratcher
 ==============
 
 Back scratcher is a LEGO Mindstorms robot that can address any point in 3D
-space below and within it. Here's what it looks like:
+space below and within it. You can find a bit of detail and history about
+it at my blog:
+
+http://www.korokithakis.net/posts/developing-back-scratching-robot/
+
+And here's what it looks like:
 
 ![The back scratcher](http://media.korokithakis.net/images/robot/robot.jpg)
 
