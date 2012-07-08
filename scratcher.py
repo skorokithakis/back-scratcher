@@ -97,4 +97,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    #main()
+    print radii_to_cartesian(29, 29, 29)

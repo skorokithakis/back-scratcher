@@ -25,7 +25,7 @@ const float D = 32.0;
 const float I = D / 2;
 const float J = 0.86 * D;
 
-const radii INITIAL_RADII = {27, 27, 27};
+const radii INITIAL_RADII = {23, 23, 23};
 const int POWER = 60;
 const bool SPEEDREG = false;
 const bool SMOOTHSTART = true;
@@ -46,6 +46,13 @@ radii cartesian_to_radii(point input) {
     output.r2 = sqrt(pow((input.x - D), 2) + pow(input.y, 2) + pow(input.z, 2));
     output.r3 = sqrt(pow((input.x - I), 2) + pow((input.y - J), 2) + pow(input.z, 2));
     return output;
+}
+
+void init_buttons() {
+    // Initialize the button press counts.
+    SetButtonPressCount(BTNCENTER, 0);
+    SetButtonPressCount(BTNLEFT, 0);
+    SetButtonPressCount(BTNRIGHT, 0);
 }
 
 void init_motors() {
@@ -90,16 +97,13 @@ void wait_for_motors() {
 void move_to_radius(const byte &port, float radius) {
     // Move to the given (absolute) radius.
 
-    // Sanity checks.
-    if (radius < 5)
-        radius = 5;
-
     long degrees = radius * CM;
     int powersign = 1;
 
+
     // Subtract the motor's current position from the desired one to get
     // the absolute position.
-    degrees = degrees - MotorTachoCount(port);
+    degrees = degrees - MotorBlockTachoCount(port);
 
     if (degrees < 0) {
         degrees = abs(degrees);
@@ -116,11 +120,13 @@ void move_to_radius(const byte &port, float radius) {
             break;
         case OUT_B:
             motorParamsB.power = powersign * POWER;
+            motorParamsB.tacholimit = degrees;
             taskBrunning = true;
             start MoveB;
             break;
         case OUT_C:
             motorParamsC.power = powersign * POWER;
+            motorParamsC.tacholimit = degrees;
             taskCrunning = true;
             start MoveC;
             break;
@@ -137,17 +143,27 @@ void move_to_radii(radii input) {
     input.r2 = input.r2 - INITIAL_RADII.r2;
     input.r3 = input.r3 - INITIAL_RADII.r3;
 
+
+    ResetScreen();
+    TextOut(0, LCD_LINE1, "Moving to:");
+    NumOut(0, LCD_LINE2, input.r1);
+    NumOut(0, LCD_LINE3, input.r2);
+    NumOut(0, LCD_LINE4, input.r3);
+
     // Move.
     move_to_radius(OUT_A, input.r1);
     move_to_radius(OUT_B, input.r2);
     move_to_radius(OUT_C, input.r3);
-
 
     // Wait for all the motors to stop moving.
     wait_for_motors();
 }
 
 void move_to(point input) {
+    // Sanity check.
+    if (input.z < 5)
+        input.z = 5;
+
     // Move to the specified Cartesian point.
     radii target = cartesian_to_radii(input);
 
@@ -163,12 +179,22 @@ task main() {
     point target;
 
     init_motors();
+    init_buttons();
 
-    target.x = 0;
-    target.y = 0;
-    target.z = 5;
+    while (true) {
+        // Exit gracefully if the center button is pressed.
+        if (ButtonPressCount(BTNCENTER) > 0)
+            break;
 
-    move_to(target);
+        // Right button lowers, left button raises.
+        target.x = Random(D);
+        target.y = Random(D);
+        target.z = 20 + ButtonPressCount(BTNRIGHT) - ButtonPressCount(BTNLEFT);
 
+        move_to(target);
+    }
+
+    ResetScreen();
+    TextOut(0, LCD_LINE1, "Resetting...");
     reset();
 }
