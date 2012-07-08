@@ -1,3 +1,5 @@
+#include "motcont/MotorControl22.nxc"
+
 struct point {
     float x;
     float y;
@@ -25,6 +27,10 @@ const float J = 0.86 * D;
 
 const radii INITIAL_RADII = {27, 27, 27};
 const int POWER = 60;
+const bool SPEEDREG = false;
+const bool SMOOTHSTART = true;
+const bool HOLDBRAKE = true;
+
 
 point radii_to_cartesian(radii input) {
     point output;
@@ -42,16 +48,110 @@ radii cartesian_to_radii(point input) {
     return output;
 }
 
+void init_motors() {
+    // Initialize the motcont motors.
+    InitSpeedFromPosLUT();
+
+    motorParamsA.power = POWER;
+    motorParamsA.tacholimit = 1000;
+    motorParamsA.speedreg = SPEEDREG;
+    motorParamsA.holdbrake = HOLDBRAKE;
+    motorParamsA.smoothstart = SMOOTHSTART;
+
+    motorParamsB.power = POWER;
+    motorParamsB.tacholimit = 1000;
+    motorParamsB.speedreg = SPEEDREG;
+    motorParamsB.holdbrake = HOLDBRAKE;
+    motorParamsB.smoothstart = SMOOTHSTART;
+
+    motorParamsC.power = POWER;
+    motorParamsC.tacholimit = 1000;
+    motorParamsC.speedreg = SPEEDREG;
+    motorParamsC.holdbrake = HOLDBRAKE;
+    motorParamsC.smoothstart = SMOOTHSTART;
+}
+
+void wait_for_motors() {
+    // Wait for all the motors to stop moving.
+
+    while(taskArunning) {
+        Wait(50);
+    }
+
+    while(taskBrunning) {
+        Wait(50);
+    }
+
+    while(taskCrunning) {
+        Wait(50);
+    }
+}
+
+void move_to_radius(const byte &port, float radius) {
+    // Move to the given (absolute) radius.
+
+    // Sanity checks.
+    if (radius < 5)
+        radius = 5;
+
+    long degrees = radius * CM;
+    int powersign = 1;
+
+    // Subtract the motor's current position from the desired one to get
+    // the absolute position.
+    degrees = degrees - MotorTachoCount(port);
+
+    if (degrees < 0) {
+        degrees = abs(degrees);
+        powersign = -1;
+    }
+
+    // Move to that position.
+    switch(port) {
+        case OUT_A:
+            motorParamsA.power = powersign * POWER;
+            motorParamsA.tacholimit = degrees;
+            taskArunning = true;
+            start MoveA;
+            break;
+        case OUT_B:
+            motorParamsB.power = powersign * POWER;
+            taskBrunning = true;
+            start MoveB;
+            break;
+        case OUT_C:
+            motorParamsC.power = powersign * POWER;
+            taskCrunning = true;
+            start MoveC;
+            break;
+    }
+}
+
 void move_to_radii(radii input) {
     // Move to the given radii, relative to the starting position.
+
+    // Subtract the new position from the initial position. Since the software
+    // doesn't know we're at some point (x, y, z) to begin with, it treats the
+    // starting position as (0, 0, 0). The calculation here compensates for that.
+    input.r1 = input.r1 - INITIAL_RADII.r1;
+    input.r2 = input.r2 - INITIAL_RADII.r2;
+    input.r3 = input.r3 - INITIAL_RADII.r3;
+
+    // Move.
+    move_to_radius(OUT_A, input.r1);
+    move_to_radius(OUT_B, input.r2);
+    move_to_radius(OUT_C, input.r3);
+
+
+    // Wait for all the motors to stop moving.
+    wait_for_motors();
 }
 
 void move_to(point input) {
     // Move to the specified Cartesian point.
     radii target = cartesian_to_radii(input);
-    TextOut(0, LCD_LINE1, "Moving to...");
+
     move_to_radii(target);
-    TextOut(0, LCD_LINE2, "Moving to radii...");
 }
 
 void reset() {
@@ -60,11 +160,15 @@ void reset() {
 }
 
 task main() {
-    TextOut(0, LCD_LINE1, "Hello World 2!");
-    radii mypoint = INITIAL_RADII;
-    NumOut(0, LCD_LINE2, mypoint.r1);
-    NumOut(0, LCD_LINE3, mypoint.r2);
-    NumOut(0, LCD_LINE4, mypoint.r3);
+    point target;
 
-    Wait(5000);
+    init_motors();
+
+    target.x = 0;
+    target.y = 0;
+    target.z = 5;
+
+    move_to(target);
+
+    reset();
 }
