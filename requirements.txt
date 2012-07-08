@@ -1,0 +1,2 @@
+nxt-python==2.2.2
+pyusb==1.0.0a2
