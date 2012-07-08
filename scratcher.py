@@ -2,18 +2,18 @@
 
 import math
 import nxt.locator
+import time
 
-from nxt.motor import *
+from nxt.motor import PORT_A, PORT_B, PORT_C
+from nxt.motcont import MotCont
 from collections import namedtuple
-
-from threading import Thread
 
 # The wheel has a circumference of 6 cm averaged over 10 turns.
 # The diameter of 1.9 agrees with the result.
-# 60 degree turn = 1 cm.
+# 1 cm = 60 degrees
+CM = 60.0
 
-
-# From http://en.wikipedia.org/wiki/Trilateration.
+# From http://en.wikipedia.org/wiki/Trilateration
 # Motor A is 0, 0, 0
 # Motor B is 0, D, 0
 # Motor C is I, J, 0
@@ -21,7 +21,6 @@ D = 32.0
 I = D / 2
 J = 0.86 * D
 
-# Orthocenter: 18.5
 
 Motors = namedtuple("Motors", "A, B, C")
 
@@ -47,71 +46,44 @@ def cartesian_to_radii(x, y, z):
 class Scratcher(object):
     def __init__(self):
         self.brick = nxt.locator.find_one_brick(name="Stavros")
-        self.motors = Motors(
-            A=Motor(self.brick, PORT_A),
-            B=Motor(self.brick, PORT_B),
-            C=Motor(self.brick, PORT_C),
-        )
-        self.radii = (27, 27, 27)
+        self.motcont = MotCont(self.brick)
+        self.motcont.start()
+        self.power = 60
+        self.initial_radii = (23.5, 23.5, 23.5)
 
-    def get_new_radii(self, x, y, z):
-        """
-        Get a point in 3 dimensional space and return the distances that
-        the strings have to move in order to go there.
-        """
-        # Get the absolute radii for the new point.
-        r1, r2, r3 = cartesian_to_radii(x, y, z)
-        print "New radii:", r1, r2, r3
-        # Calculate the deltas from the current point.
-        deltas = (r1 - self.radii[0],
-                  r2 - self.radii[1],
-                  r3 - self.radii[2])
-        # Replace the old radii.
-        self.radii = (r1, r2, r3)
-        return deltas
+    def move_to_radii(self, r1, r2, r3):
+        "Move to the given radii, relative to the starting position."
+        # Convert the given radii from cm to degrees.
+
+        radii = (r1, r2, r3)
+        degrees = [(radius - initial) * CM for radius, initial in zip(radii, self.initial_radii)]
+        ports = (PORT_A, PORT_B, PORT_C)
+
+        for port, degrees in zip(ports, degrees):
+            self.motcont.move_to(port, self.power, int(degrees), smoothstart=1, brake=1)
+
+        while not all(self.motcont.is_ready(port) for port in ports):
+            time.sleep(0.1)
 
     def reset(self):
         "Move back to the origin."
-        self.move_to(16, 9, 20)
-
-    def turn(self, motor, cm):
-        """
-        Turn the motor the given distance.
-
-        Turns the motor for the given amount of centimeters. If cm is positive,
-        the object is extended, otherwise it is contracted.
-        """
-        power = 120
-        if cm < 0:
-            power = -1 * power
-            cm = abs(cm)
-        motor.turn(power, int(cm * 60))
+        self.move_to_radii(*self.initial_radii)
 
     def move_to(self, x, y, z):
         print "Moving to", x, y, z
-        r1_delta, r2_delta, r3_delta = self.get_new_radii(x, y, z)
-        print "Moving by", r1_delta, r2_delta, r3_delta
-
-        threads = (
-            Thread(target=self.turn, kwargs={"motor": self.motors.A, "cm": r1_delta}),
-            Thread(target=self.turn, kwargs={"motor": self.motors.B, "cm": r2_delta}),
-            Thread(target=self.turn, kwargs={"motor": self.motors.C, "cm": r3_delta}),
-        )
-        [thread.start() for thread in threads]
-        [thread.join() for thread in threads]
+        r1, r2, r3 = cartesian_to_radii(x, y, z)
+        print "Moving to radii", r1, r2, r3
+        self.move_to_radii(r1, r2, r3)
 
 
 def main():
-    import time
     from random import randint
 
     scratcher = Scratcher()
-    for i in range(10):
-        scratcher.move_to(randint(0, 25), randint(0, 25), 20)
-        time.sleep(0.5)
+    for i in range(5):
+        scratcher.move_to(randint(0, 25), randint(0, 25), 25)
     scratcher.reset()
 
 
 if __name__ == "__main__":
     main()
-    #print cartesian_to_radii(0, 0, 5)
