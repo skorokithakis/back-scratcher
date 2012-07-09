@@ -3,6 +3,7 @@
 import math
 import nxt.locator
 import time
+import logging
 
 from nxt.motor import PORT_A, PORT_B, PORT_C
 from nxt.motcont import MotCont
@@ -23,7 +24,9 @@ D = 46
 I = D / 2
 J = 0.86 * D
 
-
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s:%(levelname)s:%(message)s')
+logger = logging.getLogger("scratcher")
+logger.debug("hi")
 Motors = namedtuple("Motors", "A, B, C")
 
 
@@ -53,6 +56,7 @@ class Scratcher(object):
         self.power = 60
         # Place the scratcher 5 cm under motor A.
         self.initial_radii = cartesian_to_radii(0, 0, 5)
+        logger.debug("Initial radii are %s." % (self.initial_radii,))
 
     def move_to_radii(self, r1, r2, r3):
         "Move to the given (absolute) radii."
@@ -67,6 +71,8 @@ class Scratcher(object):
         # doesn't know we're at some point (x, y, z) to begin with, it treats the
         # starting position as (0, 0, 0). The calculation here compensates for that.
         radii = [(radius - initial) for radius, initial in zip(radii, self.initial_radii)]
+
+        logger.debug("Relative radii are (%s, %s, %s)." % tuple(radii))
 
         # Convert the given radii from cm to degrees.
         degrees = [radius * CM for radius in radii]
@@ -84,9 +90,9 @@ class Scratcher(object):
         self.motcont.stop()
 
     def move_to(self, x, y, z):
-        print "Moving to", x, y, z
+        logger.debug("Moving to position (%s, %s, %s)." % (x, y, z))
         r1, r2, r3 = cartesian_to_radii(x, y, z)
-        print "Moving to radii", r1, r2, r3
+        logger.debug("Moving to radii (%s, %s, %s)." % (r1, r2, r3))
         self.move_to_radii(r1, r2, r3)
 
 
@@ -95,7 +101,7 @@ def main():
 
     scratcher = Scratcher()
     for i in range(5):
-        scratcher.move_to(randint(0, J), randint(0, J), 30)
+        scratcher.move_to(randint(0, int(J)), randint(0, int(J)), 20)
     scratcher.reset()
 
 
