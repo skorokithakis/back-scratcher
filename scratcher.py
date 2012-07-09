@@ -18,7 +18,8 @@ CM = 60.0
 # Motor B is 0, D, 0
 # Motor C is I, J, 0
 # Or, D is the length of a side of the triangle in cm.
-D = 32.0
+# J is also the height of the triangle.
+D = 46
 I = D / 2
 J = 0.86 * D
 
@@ -46,14 +47,15 @@ def cartesian_to_radii(x, y, z):
 
 class Scratcher(object):
     def __init__(self):
-        self.brick = nxt.locator.find_one_brick(name="Stavros")
+        self.brick = nxt.locator.find_one_brick()
         self.motcont = MotCont(self.brick)
         self.motcont.start()
         self.power = 60
-        self.initial_radii = (30, 30, 30)
+        # Place the scratcher 5 cm under motor A.
+        self.initial_radii = cartesian_to_radii(0, 0, 5)
 
     def move_to_radii(self, r1, r2, r3):
-        "Move to the given radii, relative to the starting position."
+        "Move to the given (absolute) radii."
 
         # These are absolute radii, thanks to motcont.
         radii = (r1, r2, r3)
@@ -79,6 +81,7 @@ class Scratcher(object):
     def reset(self):
         "Move back to the origin."
         self.move_to_radii(*self.initial_radii)
+        self.motcont.stop()
 
     def move_to(self, x, y, z):
         print "Moving to", x, y, z
@@ -92,11 +95,9 @@ def main():
 
     scratcher = Scratcher()
     for i in range(5):
-        scratcher.move_to(randint(0, 25), randint(0, 25), randint(5, 25))
-    scratcher.move_to(0, 0, 30)
+        scratcher.move_to(randint(0, J), randint(0, J), 30)
     scratcher.reset()
 
 
 if __name__ == "__main__":
-    #main()
-    print radii_to_cartesian(29, 29, 29)
+    main()
