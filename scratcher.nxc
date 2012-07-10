@@ -22,11 +22,12 @@ const float CM = 60;
 // Motor B is 0, D, 0
 // Motor C is I, J, 0
 // Or, D is the length of a side of the triangle in cm.
-const float D = 32.0;
+// J is also the height of the triangle.
+const float D = 46.0;
 const float I = D / 2;
 const float J = 0.86 * D;
 
-const radii INITIAL_RADII = {23, 23, 23};
+radii INITIAL_RADII;
 const int POWER = 60;
 const bool SPEEDREG = false;
 const bool SMOOTHSTART = true;
@@ -47,6 +48,16 @@ radii cartesian_to_radii(point input) {
     output.r2 = sqrt(pow((input.x - D), 2) + pow(input.y, 2) + pow(input.z, 2));
     output.r3 = sqrt(pow((input.x - I), 2) + pow((input.y - J), 2) + pow(input.z, 2));
     return output;
+}
+
+void init_radii() {
+    // Place the scratcher 5 cm under motor A.
+    point initial;
+    initial.x = 0;
+    initial.y = 0;
+    initial.z = 5;
+
+    INITIAL_RADII = cartesian_to_radii(initial);
 }
 
 void init_buttons() {
@@ -179,6 +190,7 @@ void reset() {
 task main() {
     point target;
 
+    init_radii();
     init_motors();
     init_buttons();
 
@@ -188,8 +200,8 @@ task main() {
             break;
 
         // Right button lowers, left button raises.
-        target.x = Random(D);
-        target.y = Random(D);
+        target.x = Random(J);
+        target.y = Random(J);
         target.z = 20 + ButtonPressCount(BTNRIGHT) - ButtonPressCount(BTNLEFT);
 
         move_to(target);
