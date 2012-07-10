@@ -1,5 +1,8 @@
 #include "motcont/MotorControl22.nxc"
 
+// #define LOGGING
+#include "logging.nxc"
+
 struct point {
     float x;
     float y;
@@ -25,7 +28,7 @@ const float CM = 60;
 // J is also the height of the triangle.
 const float D = 46.0;
 const float I = D / 2;
-const float J = 0.86 * D;
+const float J = 0.866 * D;
 
 radii INITIAL_RADII;
 const int POWER = 60;
@@ -48,6 +51,20 @@ radii cartesian_to_radii(point input) {
     output.r2 = sqrt(pow((input.x - D), 2) + pow(input.y, 2) + pow(input.z, 2));
     output.r3 = sqrt(pow((input.x - I), 2) + pow((input.y - J), 2) + pow(input.z, 2));
     return output;
+}
+
+float ensure_in_triangle(point input) {
+    // Ensure that a given point falls inside a triangle.
+
+    // The slope of an equilateral triangle is tan(60). We can check if the
+    // point lies inside the triangle with one equation by transposing the
+    // triangle D / 2 to the left and checking to see if the point falls
+    // inside the half-triangle.
+    float triangle_y = -1.732 * abs(input.x - D / 2) + J;
+    if (triangle_y < input.y)
+        return triangle_y;
+    else
+        return input.y;
 }
 
 void init_radii() {
@@ -172,12 +189,19 @@ void move_to_radii(radii input) {
 }
 
 void move_to(point input) {
+    // Make sure the point is inside the triangle by forcing it.
+    input.y = ensure_in_triangle(input);
+
     // Sanity check.
     if (input.z < 5)
         input.z = 5;
 
+    writeLogValue3("Moving to position", input.x, input.y, input.z);
+
     // Move to the specified Cartesian point.
     radii target = cartesian_to_radii(input);
+
+    writeLogValue3("Moving to radii", target.r1, target.r2, target.r3);
 
     move_to_radii(target);
 }
@@ -190,6 +214,7 @@ void reset() {
 task main() {
     point target;
 
+    openLogFile("scratcher.log", 5000);
     init_radii();
     init_motors();
     init_buttons();
@@ -210,4 +235,5 @@ task main() {
     ResetScreen();
     TextOut(0, LCD_LINE1, "Resetting...");
     reset();
+    closeLogFile();
 }

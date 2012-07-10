@@ -22,7 +22,7 @@ CM = 60.0
 # J is also the height of the triangle.
 D = 46
 I = D / 2
-J = 0.86 * D
+J = 0.866 * D
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s:%(levelname)s:%(message)s')
 logger = logging.getLogger("scratcher")
@@ -46,6 +46,15 @@ def cartesian_to_radii(x, y, z):
     r3 = math.sqrt((x - I) ** 2 + (y - J) ** 2 + z ** 2)
 
     return r1, r2, r3
+
+
+def ensure_in_triangle(x, y, z):
+    """Ensure that a given point falls inside a triangle."""
+    # The slope of an equilateral triangle is tan(60). We can check if the
+    # point lies inside the triangle with one equation by transposing the
+    # triangle D / 2 to the left and checking to see if the point falls
+    # inside the half-triangle.
+    return min(y, -1.732 * abs(x - D / 2) + J)
 
 
 class Scratcher(object):
@@ -91,6 +100,8 @@ class Scratcher(object):
 
     def move_to(self, x, y, z):
         logger.debug("Moving to position (%s, %s, %s)." % (x, y, z))
+        y = ensure_in_triangle(x, y, z)
+        logger.debug("Ensured to position (%s, %s, %s)." % (x, y, z))
         r1, r2, r3 = cartesian_to_radii(x, y, z)
         logger.debug("Moving to radii (%s, %s, %s)." % (r1, r2, r3))
         self.move_to_radii(r1, r2, r3)
