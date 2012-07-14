@@ -1,5 +1,3 @@
-#include "motcont/MotorControl22.nxc"
-
 // #define LOGGING
 #include "logging.nxc"
 
@@ -31,10 +29,19 @@ const float I = D / 2;
 const float J = 0.866 * D;
 
 radii INITIAL_RADII;
-const int POWER = 60;
+const int POWER = 50;
 const bool SPEEDREG = false;
 const bool SMOOTHSTART = true;
 const bool HOLDBRAKE = true;
+
+struct typRunMotorParams {
+    char power;
+    long angle;
+};
+
+typRunMotorParams motorParamsA;
+typRunMotorParams motorParamsB;
+typRunMotorParams motorParamsC;
 
 
 point radii_to_cartesian(radii input) {
@@ -53,6 +60,15 @@ radii cartesian_to_radii(point input) {
     return output;
 }
 
+void WriteLine(int line, string name, int value1, int value2, int value3) {
+	string s;
+	s = name + FormatNum(": %d,  ", value1);
+	s = s + FormatNum("%d,  ", value2);
+	s = s + FormatNum("%d", value3);
+
+    TextOut(0, (8 - line) * 8, s);
+}
+
 float ensure_in_triangle(point input) {
     // Ensure that a given point falls inside a triangle.
 
@@ -65,6 +81,12 @@ float ensure_in_triangle(point input) {
         return triangle_y;
     else
         return input.y;
+}
+
+void init_motors() {
+    motorParamsA.power = POWER;
+    motorParamsB.power = POWER;
+    motorParamsC.power = POWER;
 }
 
 void init_radii() {
@@ -84,41 +106,30 @@ void init_buttons() {
     SetButtonPressCount(BTNRIGHT, 0);
 }
 
-void init_motors() {
-    // Initialize the motcont motors.
-    InitSpeedFromPosLUT();
+task rotate_motor_A() {
+    RotateMotor(OUT_A, motorParamsA.power, motorParamsA.angle);
+}
 
-    motorParamsA.power = POWER;
-    motorParamsA.tacholimit = 1000;
-    motorParamsA.speedreg = SPEEDREG;
-    motorParamsA.holdbrake = HOLDBRAKE;
-    motorParamsA.smoothstart = SMOOTHSTART;
+task rotate_motor_B() {
+    RotateMotor(OUT_B, motorParamsB.power, motorParamsB.angle);
+}
 
-    motorParamsB.power = POWER;
-    motorParamsB.tacholimit = 1000;
-    motorParamsB.speedreg = SPEEDREG;
-    motorParamsB.holdbrake = HOLDBRAKE;
-    motorParamsB.smoothstart = SMOOTHSTART;
-
-    motorParamsC.power = POWER;
-    motorParamsC.tacholimit = 1000;
-    motorParamsC.speedreg = SPEEDREG;
-    motorParamsC.holdbrake = HOLDBRAKE;
-    motorParamsC.smoothstart = SMOOTHSTART;
+task rotate_motor_C() {
+    RotateMotor(OUT_C, motorParamsC.power, motorParamsC.angle);
 }
 
 void wait_for_motors() {
     // Wait for all the motors to stop moving.
 
-    while(taskArunning) {
+    while(MotorRunState(OUT_A) != OUT_RUNSTATE_IDLE) {
         Wait(50);
     }
 
-    while(taskBrunning) {
+    while(MotorRunState(OUT_B) != OUT_RUNSTATE_IDLE) {
         Wait(50);
     }
 
-    while(taskCrunning) {
+    while(MotorRunState(OUT_C) != OUT_RUNSTATE_IDLE) {
         Wait(50);
     }
 }
@@ -127,37 +138,33 @@ void move_to_radius(const byte &port, float radius) {
     // Move to the given (absolute) radius.
 
     long degrees = radius * CM;
-    int powersign = 1;
-
 
     // Subtract the motor's current position from the desired one to get
     // the absolute position.
     degrees = degrees - MotorBlockTachoCount(port);
 
-    if (degrees < 0) {
-        degrees = abs(degrees);
-        powersign = -1;
-    }
-
     // Move to that position.
     switch(port) {
         case OUT_A:
-            motorParamsA.power = powersign * POWER;
-            motorParamsA.tacholimit = degrees;
-            taskArunning = true;
-            start MoveA;
+            writeLogValue("Motor A radius", radius);
+            writeLogValue("Motor A degrees", radius * CM);
+            writeLogValue("Motor A tacho count", MotorBlockTachoCount(port));
+            motorParamsA.angle = degrees;
+            start rotate_motor_A;
             break;
         case OUT_B:
-            motorParamsB.power = powersign * POWER;
-            motorParamsB.tacholimit = degrees;
-            taskBrunning = true;
-            start MoveB;
+            writeLogValue("Motor B radius", radius);
+            writeLogValue("Motor B degrees", radius * CM);
+            writeLogValue("Motor B tacho count", MotorBlockTachoCount(port));
+            motorParamsB.angle = degrees;
+            start rotate_motor_B;
             break;
         case OUT_C:
-            motorParamsC.power = powersign * POWER;
-            motorParamsC.tacholimit = degrees;
-            taskCrunning = true;
-            start MoveC;
+            writeLogValue("Motor C radius", radius);
+            writeLogValue("Motor C degrees", radius * CM);
+            writeLogValue("Motor C tacho count", MotorBlockTachoCount(port));
+            motorParamsC.angle = degrees;
+            start rotate_motor_C;
             break;
     }
 }
@@ -171,13 +178,6 @@ void move_to_radii(radii input) {
     input.r1 = input.r1 - INITIAL_RADII.r1;
     input.r2 = input.r2 - INITIAL_RADII.r2;
     input.r3 = input.r3 - INITIAL_RADII.r3;
-
-
-    ResetScreen();
-    TextOut(0, LCD_LINE1, "Moving to:");
-    NumOut(0, LCD_LINE2, input.r1);
-    NumOut(0, LCD_LINE3, input.r2);
-    NumOut(0, LCD_LINE4, input.r3);
 
     // Move.
     move_to_radius(OUT_A, input.r1);
@@ -203,6 +203,11 @@ void move_to(point input) {
 
     writeLogValue3("Moving to radii", target.r1, target.r2, target.r3);
 
+    ResetScreen();
+    TextOut(0, LCD_LINE1, "Moving to:");
+    WriteLine(2, "C", input.x, input.y, input.z);
+    WriteLine(3, "R", target.r1, target.r2, target.r3);
+
     move_to_radii(target);
 }
 
@@ -215,8 +220,8 @@ task main() {
     point target;
 
     openLogFile("scratcher.log", 5000);
-    init_radii();
     init_motors();
+    init_radii();
     init_buttons();
 
     while (true) {
