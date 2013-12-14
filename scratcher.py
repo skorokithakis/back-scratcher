@@ -26,7 +26,6 @@ J = 0.866 * D
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s:%(levelname)s:%(message)s')
 logger = logging.getLogger("scratcher")
-logger.debug("hi")
 Motors = namedtuple("Motors", "A, B, C")
 
 
